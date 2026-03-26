@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบรายงานผลการตรวจการสหกรณ์</title>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700&display=swap');
+:root{
+  --primary:#1a3a5c;--pl:#2563a8;--accent:#c8960c;
+  --bg:#f0f3f8;--surf:#fff;--surf2:#f7f9fc;--bdr:#dde3ec;
+  --txt:#1e2d3d;--txt2:#5a6a7e;
+  --ok:#1e8449;--warn:#d4700a;--err:#c0392b;
+  --sh:0 2px 12px rgba(26,58,92,.09);--shlg:0 8px 32px rgba(26,58,92,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--txt);font-size:15px;min-height:100vh;}
+
+/* ══ LOGIN SCREEN ══ */
+#login-screen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;background:linear-gradient(135deg,#0f2540 0%,#1a3a5c 60%,#2563a8 100%);
+  position:fixed;inset:0;z-index:9999;
+}
+.login-card{
+  background:#fff;border-radius:20px;padding:44px 40px 36px;
+  width:420px;max-width:95vw;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+}
+.login-logo{width:80px;height:80px;background:linear-gradient(135deg,#c8960c,#e8b922);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 6px 20px rgba(200,150,12,.4);}
+.login-title{font-size:18px;font-weight:800;color:var(--primary);line-height:1.4;margin-bottom:6px;}
+.login-sub{font-size:12.5px;color:var(--txt2);margin-bottom:28px;}
+.login-divider{display:flex;align-items:center;gap:10px;margin:20px 0;color:var(--txt2);font-size:12px;}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--bdr);}
+.google-btn{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;padding:13px 20px;border-radius:10px;border:1.5px solid var(--bdr);
+  background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:var(--txt);
+  font-family:'Sarabun',sans-serif;transition:all .2s;
+}
+.google-btn:hover{background:#f8f9fa;border-color:#aaa;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.login-note{font-size:11px;color:var(--txt2);margin-top:20px;line-height:1.6;}
+#login-error{color:var(--err);font-size:12.5px;margin-top:12px;display:none;}
+
+/* ══ APP SHELL ══ */
+.app-shell{display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:264px;min-width:264px;background:linear-gradient(180deg,#0f2540,#1a3a5c);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;}
+.sidebar-logo{padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;align-items:center;gap:9px;}
+.logo-svg-wrap{width:64px;height:64px;background:linear-gradient(135deg,#c8960c,#e8b922);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(200,150,12,.4);}
+.sidebar-logo h2{font-size:12.5px;font-weight:700;line-height:1.5;opacity:.97;text-align:center;}
+.sidebar-logo p{font-size:10px;opacity:.5;text-align:center;}
+.user-chip{background:rgba(255,255,255,.12);border-radius:8px;padding:7px 10px;font-size:11.5px;text-align:center;margin:0 12px;margin-bottom:4px;}
+.user-chip .uc-name{font-weight:700;font-size:12px;}
+.user-chip .uc-team{opacity:.7;font-size:10.5px;margin-top:2px;}
+.sidebar-nav{padding:6px 8px 16px;flex:1;}
+.nav-sec{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;opacity:.38;padding:10px 10px 3px;font-weight:700;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;opacity:.7;transition:all .18s;margin-bottom:1px;}
+.nav-item:hover{background:rgba(255,255,255,.1);opacity:1;}
+.nav-item.active{background:rgba(255,255,255,.16);opacity:1;font-weight:600;}
+.nav-item .ni{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+.nav-item .badge{margin-left:auto;background:var(--accent);color:#fff;border-radius:10px;font-size:9px;padding:1px 7px;font-weight:700;}
+.logout-btn{margin:8px 12px 16px;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12.5px;opacity:.55;transition:all .18s;border:1px solid rgba(255,255,255,.15);}
+.logout-btn:hover{opacity:1;background:rgba(255,0,0,.15);}
+
+/* MAIN */
+.main-content{margin-left:264px;flex:1;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 26px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh);}
+.topbar-title{font-size:15px;font-weight:700;color:var(--primary);}
+.topbar-sub{font-size:11px;color:var(--txt2);}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+
+/* TEAM BADGE in topbar */
+.team-badge{background:var(--pl);color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;}
+.admin-badge{background:#7c3aed;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;border:none;transition:all .18s;font-family:'Sarabun',sans-serif;}
+.btn-primary{background:var(--pl);color:#fff;}.btn-primary:hover{background:var(--primary);}
+.btn-accent{background:var(--accent);color:#fff;}.btn-accent:hover{filter:brightness(.9);}
+.btn-outline{background:transparent;color:var(--pl);border:1.5px solid var(--pl);}.btn-outline:hover{background:var(--pl);color:#fff;}
+.btn-success{background:var(--ok);color:#fff;}
+.btn-danger{background:var(--err);color:#fff;}
+.btn-purple{background:#7c3aed;color:#fff;}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.btn-xs{padding:3px 8px;font-size:11.5px;}
+
+/* PAGES */
+.page{display:none;padding:20px 26px;animation:fi .2s;}
+.page.active{display:block;}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:18px;}
+.stat-card{background:var(--surf);border-radius:12px;padding:15px 17px;box-shadow:var(--sh);border-left:4px solid var(--pl);transition:transform .18s;}
+.stat-card:hover{transform:translateY(-2px);}
+.stat-card.green{border-left-color:var(--ok);}.stat-card.gold{border-left-color:var(--accent);}.stat-card.red{border-left-color:var(--err);}
+.stat-card .lbl{font-size:11px;color:var(--txt2);font-weight:600;}
+.stat-card .val{font-size:22px;font-weight:700;color:var(--primary);margin:2px 0;font-family:'Noto Serif Thai',serif;}
+.stat-card .sub{font-size:10px;color:var(--txt2);}
+.dash-row{display:grid;grid-template-columns:2fr 1fr;gap:13px;margin-bottom:18px;}
+.card{background:var(--surf);border-radius:12px;box-shadow:var(--sh);overflow:hidden;}
+.card-header{padding:12px 17px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--surf2);}
+.card-header h3{font-size:13px;font-weight:700;color:var(--primary);}
+.card-body{padding:15px;}
+.progress-item{margin-bottom:9px;}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;}
+.progress-bar{height:6px;border-radius:3px;background:var(--bdr);overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s;}
+.team-list{display:flex;flex-direction:column;gap:7px;}
+.team-member{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:8px;background:var(--surf2);border:1px solid var(--bdr);}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.tm-info{flex:1;}.tm-name{font-size:12.5px;font-weight:600;}.tm-role{font-size:10px;color:var(--txt2);}
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.sdot.done{background:var(--ok);}.sdot.work{background:var(--warn);}.sdot.pend{background:var(--bdr);}
+
+/* FORM */
+.form-sec{background:var(--surf);border-radius:12px;box-shadow:var(--sh);margin-bottom:14px;overflow:hidden;}
+.form-sec-hd{background:linear-gradient(90deg,var(--primary),var(--pl));color:#fff;padding:11px 17px;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;}
+.sec-num{background:rgba(255,255,255,.22);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+.form-sec-body{padding:15px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-group{margin-bottom:10px;}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:3px;}
+.req{color:var(--err);}
+.fc{width:100%;padding:7px 10px;border-radius:7px;border:1.5px solid var(--bdr);background:var(--surf);font-size:13px;color:var(--txt);font-family:'Sarabun',sans-serif;transition:border-color .18s;}
+.fc:focus{outline:none;border-color:var(--pl);box-shadow:0 0 0 3px rgba(37,99,168,.1);}
+textarea.fc{resize:vertical;min-height:76px;}
+
+/* TABS */
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--bdr);margin-bottom:15px;flex-wrap:wrap;}
+.tab{padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .18s;white-space:nowrap;}
+.tab.active{color:var(--pl);border-bottom-color:var(--pl);}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+/* TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table th{background:var(--primary);color:#fff;padding:8px 10px;text-align:left;font-weight:600;font-size:12px;}
+.data-table td{padding:8px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle;}
+.data-table tr:hover td{background:var(--surf2);}
+.ct-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ct-table th{background:var(--pl);color:#fff;padding:6px 8px;font-size:11.5px;}
+.ct-table td{padding:6px 8px;border-bottom:1px solid var(--bdr);vertical-align:middle;}
+.ct-table tr:nth-child(even) td{background:var(--surf2);}
+.ct-table input,.ct-table select{border:1px solid var(--bdr);border-radius:5px;padding:4px 6px;font-size:12px;font-family:'Sarabun',sans-serif;width:100%;background:var(--surf);}
+.ct-table input:focus,.ct-table select:focus{outline:none;border-color:var(--pl);}
+
+/* TAGS */
+.tag{display:inline-flex;align-items:center;gap:3px;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;}
+.tag-default{background:#e8edf5;color:var(--primary);}
+.tag-ok{background:#e6f4ea;color:var(--ok);}
+.tag-warn{background:#fff3e0;color:var(--warn);}
+.tag-err{background:#fde8e8;color:var(--err);}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--bdr);border-radius:10px;padding:22px;text-align:center;cursor:pointer;transition:all .18s;background:var(--surf2);}
+.upload-zone:hover{border-color:var(--pl);background:#eef4ff;}
+.file-list{margin-top:9px;display:flex;flex-direction:column;gap:4px;}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surf);border-radius:7px;border:1px solid var(--bdr);font-size:12.5px;}
+.file-item .fi-meta{flex:1;min-width:0;}
+.file-item .fi-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fi-size{font-size:10.5px;color:var(--txt2);}
+.rm-btn{cursor:pointer;color:var(--err);font-size:14px;border:none;background:none;padding:0;flex-shrink:0;}
+
+/* ALERT */
+.alert{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;display:flex;align-items:flex-start;gap:8px;}
+.alert-info{background:#e8f4fd;border-left:4px solid var(--pl);color:var(--primary);}
+.alert-warn{background:#fff8e1;border-left:4px solid var(--warn);color:#7d4a00;}
+.alert-ok{background:#e6f4ea;border-left:4px solid var(--ok);color:#0d4a1e;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;}
+.modal-overlay.active{display:flex;}
+.modal{background:var(--surf);border-radius:14px;max-width:960px;width:96%;max-height:92vh;overflow-y:auto;box-shadow:var(--shlg);}
+.modal-header{padding:14px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surf);z-index:10;}
+.modal-body{padding:20px;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--bdr);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surf);}
+.close-btn{cursor:pointer;font-size:20px;color:var(--txt2);background:none;border:none;line-height:1;}
+
+/* LOAN TYPE BADGE */
+.lt-badge{display:inline-block;border-radius:20px;padding:2px 10px;font-size:10.5px;font-weight:700;border:1.5px solid;}
+.lt-em{background:#fff3e0;color:#b45309;border-color:#f59e0b;}
+.lt-or{background:#e8f4fd;color:#1d4ed8;border-color:#3b82f6;}
+.lt-sp{background:#f0fdf4;color:#15803d;border-color:#22c55e;}
+
+/* DOC SECTION */
+.doc-sec{background:var(--surf);border-radius:12px;box-shadow:var(--sh);margin-bottom:14px;overflow:hidden;}
+.doc-sec-hd{display:flex;align-items:center;gap:9px;padding:11px 17px;background:var(--surf2);border-bottom:1px solid var(--bdr);}
+.doc-sec-hd h3{font-size:13px;font-weight:700;color:var(--primary);flex:1;}
+
+/* ADMIN PANEL */
+.admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:18px;}
+.admin-stat{background:var(--surf);border-radius:12px;padding:16px;box-shadow:var(--sh);text-align:center;}
+.admin-stat .as-val{font-size:28px;font-weight:800;font-family:'Noto Serif Thai',serif;}
+.admin-stat .as-lbl{font-size:11.5px;color:var(--txt2);margin-top:4px;}
+
+/* LOADING OVERLAY */
+#loading{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:8000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+#loading.show{display:flex;}
+.spinner{width:44px;height:44px;border:4px solid var(--bdr);border-top-color:var(--pl);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;background:#1a3a5c;color:#fff;padding:10px 20px;border-radius:9px;font-size:13.5px;font-family:'Sarabun',sans-serif;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.22);transition:all .3s;opacity:0;transform:translateY(8px);pointer-events:none;}
+
+/* ══ WATERMARK (print) ══ */
+@media print {
+  .sidebar,.topbar,.no-print{display:none!important;}
+  .main-content{margin-left:0!important;}
+  body{background:#fff;}
+  .page{display:none!important;}
+  #page-form{display:block!important;padding:0!important;}
+  #page-form .no-print,#page-form .tabs,#page-form .tab-content:not(.active){display:none!important;}
+  .form-sec{box-shadow:none;border:1px solid #ccc;margin-bottom:8px;page-break-inside:avoid;}
+  .fc{border:none;}textarea.fc{border-bottom:1px solid #ccc;}
+
+  /* watermark */
+  body::before{
+    content:'กรมส่งเสริมสหกรณ์ • COOPERATIVE PROMOTION DEPARTMENT • ลับ';
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);
+    font-size:28pt;font-weight:800;color:rgba(26,58,92,.06);
+    white-space:nowrap;z-index:9999;pointer-events:none;
+    font-family:'Sarabun',sans-serif;letter-spacing:2px;
+  }
+  /* DOA logo watermark top-right */
+  @page{margin:2cm;}
+}
+
+@media(max-width:1100px){.dash-grid{grid-template-columns:repeat(2,1fr);}.dash-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOADING ══ -->
+<div id="loading" class="show">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--txt2);font-family:'Sarabun',sans-serif">กำลังโหลดระบบ...</div>
+</div>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+        <rect x="6" y="3" width="26" height="34" rx="3" fill="white" fill-opacity=".95"/>
+        <rect x="10" y="14" width="14" height="2" rx="1" fill="#1a3a5c" fill-opacity=".4"/>
+        <rect x="10" y="19" width="18" height="2" rx="1" fill="#1a3a5c" fill-opacity=".3"/>
+        <rect x="10" y="24" width="12" height="2" rx="1" fill="#1a3a5c" fill-opacity=".3"/>
+        <rect x="10" y="29" width="4" height="5" rx="1" fill="#1a3a5c" fill-opacity=".5"/>
+        <rect x="16" y="26" width="4" height="8" rx="1" fill="#c8960c" fill-opacity=".85"/>
+        <rect x="22" y="27" width="4" height="7" rx="1" fill="#1a3a5c" fill-opacity=".4"/>
+        <circle cx="35" cy="33" r="7" fill="#1e8449"/>
+        <path d="M31.5 33 L34 35.5 L38.5 30.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="login-title">ระบบรายงานผลการ<br>ตรวจการสหกรณ์</div>
+    <div class="login-sub">กรมส่งเสริมสหกรณ์ • ระบบสำหรับเจ้าหน้าที่เท่านั้น</div>
+
+    <button class="google-btn" onclick="loginGoogle()">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      เข้าสู่ระบบด้วย Google
+    </button>
+    <div id="login-error">❌ ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ</div>
+    <div class="login-note">🔒 ระบบปิด — เฉพาะคณะผู้ตรวจการสหกรณ์ที่ได้รับอนุมัติเท่านั้น<br>ข้อมูลแยกตามคณะ ไม่สามารถเข้าถึงข้อมูลคณะอื่นได้</div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div class="app-shell" id="main-app" style="display:none">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-svg-wrap">
+        <svg width="40" height="40" viewBox="0 0 44 44" fill="none">
+          <rect x="6" y="3" width="26" height="34" rx="3" fill="white" fill-opacity=".95"/>
+          <rect x="10" y="14" width="14" height="2" rx="1" fill="#1a3a5c" fill-opacity=".4"/>
+          <rect x="10" y="19" width="18" height="2" rx="1" fill="#1a3a5c" fill-opacity=".3"/>
+          <rect x="10" y="24" width="12" height="2" rx="1" fill="#1a3a5c" fill-opacity=".3"/>
+          <rect x="10" y="29" width="4" height="5" rx="1" fill="#1a3a5c" fill-opacity=".5"/>
+          <rect x="16" y="26" width="4" height="8" rx="1" fill="#c8960c" fill-opacity=".85"/>
+          <rect x="22" y="27" width="4" height="7" rx="1" fill="#1a3a5c" fill-opacity=".4"/>
+          <circle cx="35" cy="33" r="7" fill="#1e8449"/>
+          <path d="M31.5 33 L34 35.5 L38.5 30.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2>ระบบรายงานผลการ<br>ตรวจการสหกรณ์</h2>
+      <p>กรมส่งเสริมสหกรณ์</p>
+    </div>
+
+    <div class="user-chip">
+      <div class="uc-name" id="sb-username">...</div>
+      <div class="uc-team" id="sb-teamname">...</div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-sec">เมนูหลัก</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="ni">📊</span><span>Dashboard</span></div>
+      <div class="nav-item" onclick="showPage('form',this)"><span class="ni">📝</span><span>กรอกแบบรายงาน</span><span class="badge">กจส.</span></div>
+
+      <div class="nav-sec" style="margin-top:5px">ข้อมูลการตรวจ</div>
+      <div class="nav-item" onclick="showPage('loans',this)"><span class="ni">💳</span><span>ข้อมูลเงินกู้</span></div>
+      <div class="nav-item" onclick="showPage('attachments',this)"><span class="ni">📎</span><span>เอกสารแนบ</span></div>
+
+      <div class="nav-sec" style="margin-top:5px">เอกสารราชการ</div>
+      <div class="nav-item" onclick="showPage('doc-appoint',this)"><span class="ni">📋</span><span>คำสั่งแต่งตั้ง</span></div>
+      <div class="nav-item" onclick="showPage('doc-notify',this)"><span class="ni">📨</span><span>หนังสือแจ้งสหกรณ์</span></div>
+      <div class="nav-item" onclick="showPage('doc-other',this)"><span class="ni">🗂️</span><span>เอกสารอื่นๆ</span></div>
+
+      <div class="nav-sec" style="margin-top:5px" id="admin-nav-sec">ผู้ดูแลระบบ</div>
+      <div class="nav-item" id="admin-nav-item" onclick="showPage('admin',this)" style="display:none"><span class="ni">⚙️</span><span>Admin Panel</span><span class="badge" style="background:#7c3aed">ADMIN</span></div>
+
+      <div class="nav-sec" style="margin-top:5px">ส่งออก</div>
+      <div class="nav-item" onclick="showPreview()"><span class="ni">👁️</span><span>Preview ก่อนส่งออก</span></div>
+      <div class="nav-item" onclick="exportWord()"><span class="ni">📄</span><span>ส่งออก Word</span></div>
+      <div class="nav-item" onclick="doPrint()"><span class="ni">🖨️</span><span>พิมพ์รายงาน</span></div>
+    </div>
+
+    <div class="logout-btn" onclick="doLogout()">
+      <span>🚪</span><span>ออกจากระบบ</span>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-sub" id="topbar-sub">กำลังโหลด...</div>
+      </div>
+      <div class="topbar-right no-print">
+        <span id="role-badge"></span>
+        <button class="btn btn-outline btn-sm" onclick="saveAll()">💾 บันทึก</button>
+        <button class="btn btn-accent btn-sm" onclick="showPreview()">👁️ Preview</button>
+        <button class="btn btn-primary btn-sm" onclick="exportWord()">📄 Word</button>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="dash-grid">
+        <div class="stat-card"><div class="lbl">จำนวนสมาชิก</div><div class="val" id="d-members">—</div><div class="sub">ณ วันที่ตรวจสอบ</div></div>
+        <div class="stat-card green"><div class="lbl">กำไรสุทธิประจำปี</div><div class="val" id="d-profit">—</div><div class="sub">บาท (ปีล่าสุด)</div></div>
+        <div class="stat-card gold"><div class="lbl">รายการที่กรอกแล้ว</div><div class="val" id="dash-filled">0 / 16</div><div class="sub">รายการตรวจสอบ</div></div>
+        <div class="stat-card red"><div class="lbl">ความคืบหน้า</div><div class="val" id="dash-pct">0%</div><div class="sub">ภาพรวมการกรอก</div></div>
+      </div>
+      <div class="dash-row">
+        <div class="card">
+          <div class="card-header"><h3>📊 ความคืบหน้ารายการตรวจสอบ</h3><span class="tag tag-default" id="d-teamcode">—</span></div>
+          <div class="card-body" id="progress-list" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>👥 สมาชิกคณะ</h3></div>
+          <div class="card-body" id="team-members-list">
+            <div style="color:var(--txt2);font-size:13px;text-align:center;padding:20px">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>📋 ข้อมูลคณะผู้ตรวจการ</h3><span class="tag tag-ok" id="d-inspect-date">—</span></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px" id="d-summary-grid">
+            <div style="padding:10px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr)"><div style="font-size:10px;color:var(--txt2);font-weight:600">สหกรณ์</div><div style="font-weight:700;color:var(--primary);margin-top:3px;font-size:12px" id="d-coop">—</div></div>
+            <div style="padding:10px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr)"><div style="font-size:10px;color:var(--txt2);font-weight:600">ประธานผู้ตรวจการ</div><div style="font-weight:700;color:var(--primary);margin-top:3px;font-size:12px" id="d-head">—</div></div>
+            <div style="padding:10px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr)"><div style="font-size:10px;color:var(--txt2);font-weight:600">รหัสคณะ</div><div style="font-weight:700;color:var(--primary);margin-top:3px;font-size:12px" id="d-teamid">—</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FORM ══ -->
+    <div class="page" id="page-form">
+      <div class="alert alert-info no-print">📌 กรอกเฉพาะส่วนที่รับผิดชอบ — ระบบบันทึกอัตโนมัติและแสดงข้อมูลเฉพาะคณะของท่าน</div>
+      <div class="tabs no-print">
+        <div class="tab active" onclick="showTab('tab-hd',this)">📄 ข้อมูลส่วนหัว</div>
+        <div class="tab" onclick="showTab('tab-s1',this)">📊 รายการ 1–8</div>
+        <div class="tab" onclick="showTab('tab-s2',this)">💰 รายการ 9–16</div>
+        <div class="tab" onclick="showTab('tab-sig',this)">✍️ ผู้ลงนาม</div>
+      </div>
+      <div class="tab-content active" id="tab-hd">
+        <div class="form-sec">
+          <div class="form-sec-hd"><div class="sec-num">☆</div>ข้อมูลผู้ตรวจและสหกรณ์ที่เข้าตรวจ</div>
+          <div class="form-sec-body">
+            <div class="form-grid">
+              <div class="form-group"><label>ชื่อประธานผู้ตรวจการ<span class="req">*</span></label><input class="fc" id="f-head" oninput="autoSave()"></div>
+              <div class="form-group"><label>ตำแหน่ง</label><input class="fc" id="f-head-pos" oninput="autoSave()"></div>
+              <div class="form-group"><label>ชุดที่ / รหัส</label><input class="fc" id="f-team" oninput="autoSave()"></div>
+              <div class="form-group"><label>ชื่อสหกรณ์<span class="req">*</span></label><input class="fc" id="f-coop" oninput="autoSave()"></div>
+              <div class="form-group"><label>วันที่ตรวจ (เริ่ม)</label><input class="fc" type="date" id="f-date1" oninput="autoSave()"></div>
+              <div class="form-group"><label>วันที่ตรวจ (สิ้นสุด)</label><input class="fc" type="date" id="f-date2" oninput="autoSave()"></div>
+              <div class="form-group"><label>เวลา</label><input class="fc" id="f-time" oninput="autoSave()"></div>
+              <div class="form-group"><label>อ้างอิงกฎหมาย</label><input class="fc" id="f-law" value="มาตรา 19 แห่งพระราชบัญญัติสหกรณ์ พ.ศ. 2542" oninput="autoSave()"></div>
+            </div>
+            <div class="form-group"><label>รายชื่อผู้ตรวจการร่วม (ชื่อ - ตำแหน่ง ต่อบรรทัด)</label>
+              <textarea class="fc" id="f-insp" rows="3" oninput="autoSave()"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-s1"><div id="secs-1-8"></div></div>
+      <div class="tab-content" id="tab-s2"><div id="secs-9-16"></div></div>
+      <div class="tab-content" id="tab-sig">
+        <div class="form-sec">
+          <div class="form-sec-hd"><div class="sec-num">✍</div>ลายมือชื่อผู้ตรวจการสหกรณ์</div>
+          <div class="form-sec-body">
+            <div class="form-grid">
+              <div class="form-group"><label>ผู้ตรวจการที่ 1 (ประธาน)</label><input class="fc" id="sig1" oninput="autoSave()"></div>
+              <div class="form-group"><label>ผู้ตรวจการที่ 2</label><input class="fc" id="sig2" oninput="autoSave()"></div>
+              <div class="form-group"><label>ผู้ตรวจการที่ 3</label><input class="fc" id="sig3" oninput="autoSave()"></div>
+              <div class="form-group"><label>ผู้ตรวจการที่ 4</label><input class="fc" id="sig4" oninput="autoSave()"></div>
+            </div>
+            <div class="form-group"><label>ข้อความท้ายรายงาน</label>
+              <textarea class="fc" id="f-note" rows="2" oninput="autoSave()">ข้าพเจ้าจึงเรียนนายทะเบียนสหกรณ์มาเพื่อโปรดพิจารณา</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:12px" class="no-print">
+        <button class="btn btn-outline" onclick="saveAll()">💾 บันทึก</button>
+        <button class="btn btn-accent" onclick="showPreview()">👁️ Preview</button>
+        <button class="btn btn-primary" onclick="exportWord()">📄 ส่งออก Word</button>
+      </div>
+    </div>
+
+    <!-- ══ LOANS ══ -->
+    <div class="page" id="page-loans">
+      <div class="tabs" id="loan-tabs">
+        <div class="tab active" onclick="switchLoanTab('em',this)">🔴 เงินกู้ฉุกเฉิน <span class="lt-badge lt-em" style="margin-left:4px" id="em-cnt">0</span></div>
+        <div class="tab" onclick="switchLoanTab('atm',this)">🟠 เงินกู้ฉุกเฉิน ATM <span class="lt-badge lt-em" style="margin-left:4px" id="atm-cnt">0</span></div>
+        <div class="tab" onclick="switchLoanTab('or',this)">🔵 เงินกู้สามัญ <span class="lt-badge lt-or" style="margin-left:4px" id="or-cnt">0</span></div>
+        <div class="tab" onclick="switchLoanTab('sp',this)">🟢 เงินกู้พิเศษ <span class="lt-badge lt-sp" style="margin-left:4px" id="sp-cnt">0</span></div>
+      </div>
+      <div id="lt-em" class="loan-tc"></div>
+      <div id="lt-atm" class="loan-tc" style="display:none"></div>
+      <div id="lt-or" class="loan-tc" style="display:none"></div>
+      <div id="lt-sp" class="loan-tc" style="display:none"></div>
+    </div>
+
+    <!-- ══ ATTACHMENTS ══ -->
+    <div class="page" id="page-attachments">
+      <div class="card">
+        <div class="card-header"><h3>📎 เอกสารแนบทั่วไป</h3><button class="btn btn-primary btn-sm" onclick="document.getElementById('fi-gen').click()">+ อัปโหลด</button></div>
+        <div class="card-body">
+          <div class="alert alert-warn">⚠️ ไฟล์ที่อัปโหลดจะเชื่อมกับคณะของท่านเท่านั้น คณะอื่นไม่สามารถเข้าถึงได้</div>
+          <div class="upload-zone" onclick="document.getElementById('fi-gen').click()" ondragover="event.preventDefault()" ondrop="doDrop(event,'fl-gen')">
+            <div style="font-size:30px;margin-bottom:6px">📁</div>
+            <p style="font-size:13px">ลากไฟล์มาวางหรือ <strong style="color:var(--pl)">คลิกเลือก</strong></p>
+            <p style="font-size:11px;color:var(--txt2);margin-top:3px">PDF, Word, Excel, รูปภาพ ≤20 MB</p>
+          </div>
+          <input type="file" id="fi-gen" style="display:none" multiple onchange="addFiles(this,'fl-gen')">
+          <div class="file-list" id="fl-gen"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DOC: คำสั่งแต่งตั้ง ══ -->
+    <div class="page" id="page-doc-appoint">
+      <div class="doc-sec">
+        <div class="doc-sec-hd"><span style="font-size:20px">📋</span><h3>คำสั่งแต่งตั้งผู้ตรวจการสหกรณ์</h3><button class="btn btn-primary btn-sm" onclick="document.getElementById('fi-apt').click()">+ อัปโหลด</button></div>
+        <div style="padding:15px">
+          <div class="form-grid" style="margin-bottom:13px">
+            <div class="form-group"><label>เลขที่คำสั่ง</label><input class="fc" id="apt-no" placeholder="เช่น คส. 123/2568" oninput="autoSave()"></div>
+            <div class="form-group"><label>วันที่ออกคำสั่ง</label><input class="fc" type="date" id="apt-date" oninput="autoSave()"></div>
+            <div class="form-group"><label>ออกโดย</label><input class="fc" id="apt-by" placeholder="เช่น อธิบดีกรมส่งเสริมสหกรณ์" oninput="autoSave()"></div>
+            <div class="form-group"><label>เรื่อง</label><input class="fc" id="apt-subj" placeholder="เรื่องของคำสั่ง" oninput="autoSave()"></div>
+          </div>
+          <div class="upload-zone" onclick="document.getElementById('fi-apt').click()" ondragover="event.preventDefault()" ondrop="doDrop(event,'fl-apt')">
+            <div style="font-size:28px;margin-bottom:5px">📋</div>
+            <p style="font-size:13px">ลากไฟล์คำสั่งแต่งตั้งมาวางหรือ <strong style="color:var(--pl)">คลิกเลือก</strong></p>
+          </div>
+          <input type="file" id="fi-apt" style="display:none" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="addFiles(this,'fl-apt')">
+          <div class="file-list" id="fl-apt"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DOC: หนังสือแจ้ง ══ -->
+    <div class="page" id="page-doc-notify">
+      <div class="doc-sec">
+        <div class="doc-sec-hd"><span style="font-size:20px">📨</span><h3>หนังสือแจ้งสหกรณ์</h3><button class="btn btn-primary btn-sm" onclick="document.getElementById('fi-nty').click()">+ อัปโหลด</button></div>
+        <div style="padding:15px">
+          <div class="form-grid" style="margin-bottom:13px">
+            <div class="form-group"><label>เลขที่หนังสือ</label><input class="fc" id="nty-no" placeholder="เช่น กสส. 456/2568" oninput="autoSave()"></div>
+            <div class="form-group"><label>วันที่ออกหนังสือ</label><input class="fc" type="date" id="nty-date" oninput="autoSave()"></div>
+            <div class="form-group"><label>ถึง (ชื่อสหกรณ์)</label><input class="fc" id="nty-to" oninput="autoSave()"></div>
+            <div class="form-group"><label>กำหนดวันเข้าตรวจ</label><input class="fc" type="date" id="nty-idate" oninput="autoSave()"></div>
+            <div class="form-group" style="grid-column:1/-1"><label>เรื่อง / ข้อความสรุป</label><textarea class="fc" id="nty-detail" rows="2" oninput="autoSave()" placeholder="สรุปเนื้อหาหนังสือ"></textarea></div>
+          </div>
+          <div class="upload-zone" onclick="document.getElementById('fi-nty').click()" ondragover="event.preventDefault()" ondrop="doDrop(event,'fl-nty')">
+            <div style="font-size:28px;margin-bottom:5px">📨</div>
+            <p style="font-size:13px">ลากไฟล์หนังสือแจ้งมาวางหรือ <strong style="color:var(--pl)">คลิกเลือก</strong></p>
+          </div>
+          <input type="file" id="fi-nty" style="display:none" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="addFiles(this,'fl-nty')">
+          <div class="file-list" id="fl-nty"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DOC: อื่นๆ ══ -->
+    <div class="page" id="page-doc-other">
+      <div class="doc-sec">
+        <div class="doc-sec-hd"><span style="font-size:20px">🗂️</span><h3>เอกสารอื่นๆ</h3><button class="btn btn-primary btn-sm" onclick="document.getElementById('fi-oth').click()">+ อัปโหลด</button></div>
+        <div style="padding:15px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+            <span style="font-size:13px;font-weight:600;color:var(--primary)">รายการเอกสาร</span>
+            <button class="btn btn-success btn-sm" onclick="addOtherDoc()">+ เพิ่มรายการ</button>
+          </div>
+          <div style="overflow-x:auto;margin-bottom:13px">
+            <table class="data-table" id="other-doc-table">
+              <thead><tr><th>#</th><th>ชื่อเอกสาร</th><th>ประเภท</th><th>หมายเหตุ</th><th>ไฟล์</th><th>จัดการ</th></tr></thead>
+              <tbody id="other-doc-tbody"><tr><td colspan="6" style="text-align:center;color:var(--txt2);padding:16px;font-size:13px">ยังไม่มีรายการ</td></tr></tbody>
+            </table>
+          </div>
+          <div class="upload-zone" onclick="document.getElementById('fi-oth').click()" ondragover="event.preventDefault()" ondrop="doDrop(event,'fl-oth')">
+            <div style="font-size:28px;margin-bottom:5px">🗂️</div>
+            <p style="font-size:13px">ลากไฟล์มาวางหรือ <strong style="color:var(--pl)">คลิกเลือก</strong></p>
+          </div>
+          <input type="file" id="fi-oth" style="display:none" multiple onchange="addFiles(this,'fl-oth')">
+          <div class="file-list" id="fl-oth"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ADMIN PANEL ══ -->
+    <div class="page" id="page-admin">
+      <div class="alert alert-warn">⚠️ หน้านี้สำหรับผู้ดูแลระบบเท่านั้น — สามารถดูและจัดการข้อมูลทุกคณะได้</div>
+      <div class="admin-grid">
+        <div class="admin-stat"><div class="as-val" id="adm-teams" style="color:var(--pl)">—</div><div class="as-lbl">คณะผู้ตรวจการทั้งหมด</div></div>
+        <div class="admin-stat"><div class="as-val" id="adm-users" style="color:var(--ok)">—</div><div class="as-lbl">ผู้ใช้งานในระบบ</div></div>
+        <div class="admin-stat"><div class="as-val" id="adm-reports" style="color:var(--accent)">—</div><div class="as-lbl">รายงานที่กรอกแล้ว</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><h3>👥 จัดการผู้ใช้งาน</h3><button class="btn btn-success btn-sm" onclick="showAddUserModal()">+ เพิ่มผู้ใช้</button></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="data-table" id="adm-user-table">
+            <thead><tr><th>ชื่อ</th><th>Email (Google)</th><th>คณะที่สังกัด</th><th>Role</th><th>จัดการ</th></tr></thead>
+            <tbody id="adm-user-tbody"><tr><td colspan="5" style="text-align:center;padding:16px;color:var(--txt2)">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📋 ภาพรวมทุกคณะ</h3></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="data-table" id="adm-team-table">
+            <thead><tr><th>รหัสคณะ</th><th>ชื่อคณะ</th><th>สหกรณ์ที่ตรวจ</th><th>วันที่ตรวจ</th><th>ความคืบหน้า</th><th>ดูรายงาน</th></tr></thead>
+            <tbody id="adm-team-tbody"><tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main-content -->
+</div><!-- end app-shell -->
+
+<!-- ══ PREVIEW MODAL ══ -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 style="font-size:15px;font-weight:700;color:var(--primary)">👁️ ตรวจสอบรายงานก่อนส่งออก</h3>
+        <div style="font-size:11px;color:var(--txt2);margin-top:2px">เอกสารนี้มีลายน้ำกรมส่งเสริมสหกรณ์เมื่อพิมพ์</div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+      <button class="btn btn-success" onclick="doPrint()">🖨️ พิมพ์ (มีลายน้ำ)</button>
+      <button class="btn btn-primary" onclick="exportWord()">📄 ส่งออก Word</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD USER MODAL ══ -->
+<div class="modal-overlay" id="add-user-modal" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><h3 style="font-size:15px;font-weight:700;color:var(--primary)">+ เพิ่มผู้ใช้งาน</h3><button class="close-btn" onclick="document.getElementById('add-user-modal').classList.remove('active')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Email (Google Account) <span class="req">*</span></label><input class="fc" id="new-user-email" placeholder="example@gmail.com"></div>
+      <div class="form-group"><label>ชื่อ-นามสกุล <span class="req">*</span></label><input class="fc" id="new-user-name" placeholder="ชื่อ นามสกุล"></div>
+      <div class="form-group"><label>สังกัดคณะ <span class="req">*</span></label><input class="fc" id="new-user-team" placeholder="รหัสคณะ เช่น team_001"></div>
+      <div class="form-group"><label>Role</label>
+        <select class="fc" id="new-user-role">
+          <option value="inspector">ผู้ตรวจการ</option>
+          <option value="head">ประธานคณะ</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('add-user-modal').classList.remove('active')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="addUser()">+ เพิ่มผู้ใช้</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   🔧 FIREBASE CONFIG — วาง config ของท่านที่นี่
+══════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDEqtfLN8HMiyijoeNh4UH3JFi3PiNRLtI",
+  authDomain: "cooperative-inspection.firebaseapp.com",
+  projectId: "cooperative-inspection",
+  storageBucket: "cooperative-inspection.firebasestorage.app",
+  messagingSenderId: "810293503628",
+  appId: "1:810293503628:web:67af6dd0d956b093853da9"
+};
+/* ══════════════════════════════════════════ */
+
+/* SECTION DATA */
+const SECS=[
+  {id:1,title:"ข้อมูลทั่วไป ณ วันที่ 31 ธันวาคม 2567"},
+  {id:2,title:"รายงานการประชุมใหญ่สามัญประจำปี 2567"},
+  {id:3,title:"การกำหนดวงเงินกู้ยืมหรือค้ำประกันประจำปี"},
+  {id:4,title:"การดำรงตำแหน่งของคณะกรรมการดำเนินการสหกรณ์"},
+  {id:5,title:"รายงานการประชุมคณะกรรมการดำเนินการสหกรณ์"},
+  {id:6,title:"การปฏิบัติตามแผนงานและงบประมาณรายจ่ายประจำปี"},
+  {id:7,title:"งบทดลอง"},
+  {id:8,title:"รายงานผลการตรวจสอบของผู้ตรวจสอบกิจการ"},
+  {id:9,title:"การให้เงินกู้แก่สมาชิก"},
+  {id:10,title:"การให้เงินกู้แก่สหกรณ์อื่น"},
+  {id:11,title:"การรับฝากเงินกับสมาชิก"},
+  {id:12,title:"การรับฝากเงินกับสหกรณ์อื่น"},
+  {id:13,title:"การฝากหรือการลงทุนของสหกรณ์"},
+  {id:14,title:"การจัดทำรายงานดำรงสินทรัพย์สภาพคล่องของสหกรณ์"},
+  {id:15,title:"การปฏิบัติตามกฎหมายว่าด้วยการป้องกันและปราบปรามการฟอกเงิน"},
+  {id:16,title:"การจัดสวัสดิการหรือการตั้งกองทุนสวัสดิการต่างๆ ของสหกรณ์"}
+];
+const CLR=['#1a3a5c','#2563a8','#16a085','#c8960c','#c0392b','#8e44ad','#2980b9','#27ae60','#d4700a','#16a085','#2563a8','#c0392b','#c8960c','#1a3a5c','#27ae60','#8e44ad'];
+
+/* LOAN DATA */
+let loanData={em:[],atm:[],or:[],sp:[]};
+let otherDocCnt=0;
+
+/* APP STATE */
+let currentUser=null, currentTeamId=null, currentRole=null, db=null, auth=null;
+let saveTimer=null;
+const IS_DEMO = FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY';
+
+/* ══════════════════════════════════════
+   FIREBASE INIT
+══════════════════════════════════════ */
+function initFirebase(){
+  if(IS_DEMO){
+    // Demo mode — ทำงานโดยไม่มี Firebase
+    showDemoMode();
+    return;
+  }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    auth = firebase.auth();
+    db   = firebase.firestore();
+    auth.onAuthStateChanged(onAuthChange);
+  }catch(e){
+    console.error('Firebase init error:',e);
+    showDemoMode();
+  }
+}
+
+function showDemoMode(){
+  hide('loading');
+  hide('login-screen');
+  show('main-app');
+  // Demo user
+  currentUser={displayName:'ผู้ทดสอบระบบ',email:'demo@demo.com'};
+  currentTeamId='team_demo';
+  currentRole='head';
+  setupUI({
+    teamCode:'ชุดที่ 8 (กจส.68/69)',
+    coopName:'สหกรณ์ออมทรัพย์พนักงานเทศบาล จำกัด',
+    headName:'นายเรืองชัย โพนพุฒ',
+    inspDate:'13-14 พ.ย. 2568',
+    members:[
+      {name:'นายเรืองชัย โพนพุฒ',role:'ประธาน',status:'done'},
+      {name:'นางสาวฐิติมา กรวาทิน',role:'ผู้ตรวจการ',status:'work'},
+      {name:'นางสาวนิธิกานต์ จ่าราช',role:'ผู้ตรวจการ',status:'work'},
+      {name:'นางสาวจุฑามาศ พัดทอง',role:'ผู้ตรวจการ',status:'pend'}
+    ]
+  });
+  loadDemoFormData();
+  renderSections();
+  renderAllLoanTables();
+  updateProgress();
+  document.getElementById('sb-username').textContent='Demo Mode';
+  document.getElementById('sb-teamname').textContent='ชุดที่ 8 (กจส.68/69)';
+  document.getElementById('role-badge').outerHTML='<span class="team-badge" id="role-badge">DEMO</span>';
+  toast('🔧 Demo Mode — ใส่ Firebase Config เพื่อใช้งานจริง');
+}
+
+function onAuthChange(user){
+  if(user){
+    // Check if user is allowed
+    checkUserAccess(user);
+  }else{
+    hide('loading');
+    hide('main-app');
+    show('login-screen');
+  }
+}
+
+async function checkUserAccess(user){
+  show('loading');
+  try{
+    const doc = await db.collection('users').doc(user.email).get();
+    if(!doc.exists){
+      // User not in whitelist
+      auth.signOut();
+      hide('loading');
+      show('login-screen');
+      document.getElementById('login-error').style.display='block';
+      return;
+    }
+    const data = doc.data();
+    currentUser = user;
+    currentTeamId = data.teamId;
+    currentRole = data.role || 'inspector';
+
+    document.getElementById('sb-username').textContent = user.displayName || user.email;
+    document.getElementById('sb-teamname').textContent = data.teamName || currentTeamId;
+
+    // Role badge
+    const rb = document.getElementById('role-badge');
+    if(currentRole==='admin'){
+      rb.className='admin-badge'; rb.textContent='ADMIN';
+      document.getElementById('admin-nav-item').style.display='flex';
+    } else {
+      rb.className='team-badge'; rb.textContent = data.teamName || currentTeamId;
+    }
+
+    // Load team data
+    await loadTeamData();
+
+    hide('loading');
+    hide('login-screen');
+    show('main-app');
+    renderSections();
+    renderAllLoanTables();
+    updateProgress();
+  }catch(e){
+    console.error('Access check error:',e);
+    hide('loading');
+    show('login-screen');
+  }
+}
+
+async function loadTeamData(){
+  try{
+    const teamDoc = await db.collection('teams').doc(currentTeamId).get();
+    const teamData = teamDoc.exists ? teamDoc.data() : {};
+
+    setupUI({
+      teamCode: teamData.teamCode || currentTeamId,
+      coopName: teamData.coopName || '—',
+      headName: teamData.headName || '—',
+      inspDate: teamData.inspDate || '—',
+      members: teamData.members || []
+    });
+
+    // Fill form
+    const fields = ['f-head','f-head-pos','f-team','f-coop','f-date1','f-date2','f-time','f-law','f-insp','f-note','sig1','sig2','sig3','sig4','apt-no','apt-date','apt-by','apt-subj','nty-no','nty-date','nty-to','nty-idate','nty-detail'];
+    const saved = teamData.formData || {};
+    fields.forEach(k=>{ const el=document.getElementById(k); if(el&&saved[k]!==undefined) el.value=saved[k]; });
+
+    // Section data
+    if(teamData.sections){
+      SECS.forEach(s=>{
+        const d = teamData.sections[s.id] || {};
+        const f=document.getElementById('sf-'+s.id); if(f&&d.f) f.value=d.f;
+        const o=document.getElementById('so-'+s.id); if(o&&d.o) o.value=d.o;
+        const dy=document.getElementById('sd-'+s.id); if(dy&&d.d) dy.value=d.d;
+      });
+    }
+
+    // Loan data
+    if(teamData.loanData) loanData = teamData.loanData;
+
+    // Dashboard stats
+    if(teamData.stats){
+      const el=document.getElementById('d-members'); if(el) el.textContent=teamData.stats.members||'—';
+      const ep=document.getElementById('d-profit'); if(ep) ep.textContent=teamData.stats.profit||'—';
+    }
+  }catch(e){
+    console.error('Load team error:',e);
+  }
+}
+
+function setupUI(data){
+  // Topbar
+  document.getElementById('topbar-sub').textContent=(data.coopName||'')+(data.teamCode?' | '+data.teamCode:'');
+  // Dashboard
+  const dc=document.getElementById('d-coop'); if(dc) dc.textContent=data.coopName||'—';
+  const dh=document.getElementById('d-head'); if(dh) dh.textContent=data.headName||'—';
+  const dt=document.getElementById('d-teamid'); if(dt) dt.textContent=data.teamCode||currentTeamId;
+  const did=document.getElementById('d-inspect-date'); if(did) did.textContent='✓ ตรวจ '+(data.inspDate||'—');
+  const dtc=document.getElementById('d-teamcode'); if(dtc) dtc.textContent=data.teamCode||'—';
+
+  // Team members list
+  const tml=document.getElementById('team-members-list');
+  if(tml && data.members && data.members.length){
+    tml.innerHTML='<div class="team-list">'+data.members.map(m=>`
+      <div class="team-member">
+        <div class="avatar" style="background:var(--pl)">${(m.name||'').substring(0,2)}</div>
+        <div class="tm-info"><div class="tm-name">${esc(m.name||'')}</div><div class="tm-role">${esc(m.role||'')}</div></div>
+        <div class="sdot ${m.status||'pend'}"></div>
+      </div>`).join('')+'</div>';
+  }
+}
+
+function loadDemoFormData(){
+  const demo={
+    'f-head':'นายเรืองชัย โพนพุฒ','f-head-pos':'นักวิชาการสหกรณ์ชำนาญการพิเศษ',
+    'f-team':'ชุดที่ 8 (กจส.68/69)','f-coop':'สหกรณ์ออมทรัพย์พนักงานเทศบาล จำกัด',
+    'f-date1':'2025-11-13','f-date2':'2025-11-14','f-time':'09.30 น. เป็นต้นไป',
+    'f-law':'มาตรา 19 แห่งพระราชบัญญัติสหกรณ์ พ.ศ. 2542',
+    'f-insp':'นางสาวฐิติมา กรวาทิน - นักวิชาการสหกรณ์ปฏิบัติการ\nนางสาวนิธิกานต์ จ่าราช - นักวิชาการสหกรณ์ปฏิบัติการ\nนางสาวจุฑามาศ พัดทอง - นักวิชาการสหกรณ์ปฏิบัติการ',
+    'sig1':'นายเรืองชัย โพนพุฒ','sig2':'นางสาวฐิติมา กรวาทิน',
+    'sig3':'นางสาวจุฑามาศ พัดทอง','sig4':'นางสาวนิธิกานต์ จ่าราช'
+  };
+  const demoSecs={
+    1:'- สหกรณ์มีสมาชิก จำนวน 41,987 คน\n- คณะกรรมการดำเนินการ 15 คน\n- มีผู้จัดการสหกรณ์ 1 คน คือ นายไพศาล บัวแตง',
+    2:'- จัดประชุมใหญ่วันที่ 8 กุมภาพันธ์ 2568 สมาชิกเข้าร่วม 3,874 คน\n- กำไรสุทธิ 542,491,815.34 บาท\n- อนุมัติเงินปันผล 5.20%',
+    7:'- จัดทำงบทดลองถึงเดือน ต.ค. 2568 โดยใช้โปรแกรมสำเร็จรูป\n- เก็บรักษาเงินสดไม่เกินวันละ 500,000 บาท',
+    8:'- มีรายงานผู้ตรวจสอบกิจการ 9 ครั้ง (ม.ค.-ก.ย. 2568)\n- ไม่พบข้อสังเกตที่เป็นสาระสำคัญ'
+  };
+  Object.keys(demo).forEach(k=>{ const el=document.getElementById(k); if(el) el.value=demo[k]; });
+  Object.keys(demoSecs).forEach(id=>{ const el=document.getElementById('sf-'+id); if(el) el.value=demoSecs[id]; });
+  loanData.em=[
+    {no:'ฉ1-68-001266',mid:'0098724',name:'นางสาวยุรี ภูเกิดพิมพ์',amt:119100,inst:20,date:'06/06/2568',bank:'404-3-34619-0'},
+    {no:'ฉ1-68-001539',mid:'0081061',name:'นางอังสนา จันทร์ผ่อง',amt:184300,inst:20,date:'03/07/2568',bank:'982-0-88665-1'},
+    {no:'ฉ1-68-002329',mid:'0082780',name:'นางสาวสุวิภา นาทันตรึก',amt:170000,inst:20,date:'30/09/2568',bank:'404-1-89816-1'}
+  ];
+  loanData.or=[
+    {no:'ส168000795',date:'27/05/2568',name:'นางมัณฑศิลป์ พลสวัสดิ์',mid:'008743',amt:2000000,inst:177,gua:3},
+    {no:'ส168000796',date:'14/05/2568',name:'นางสาวมยุรี เขียวใหม่',mid:'0105886',amt:300000,inst:143,gua:1}
+  ];
+}
+
+/* ══ AUTH ══ */
+function loginGoogle(){
+  if(IS_DEMO){ toast('🔧 Demo Mode — ใส่ Firebase Config ก่อนเพื่อ Login จริง'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({hd: ''}); // allow all google accounts
+  auth.signInWithPopup(provider).catch(e=>{
+    console.error('Login error:',e);
+    toast('❌ Login ไม่สำเร็จ: '+e.message);
+  });
+}
+
+function doLogout(){
+  if(IS_DEMO){ toast('🔧 Demo Mode'); return; }
+  if(confirm('ต้องการออกจากระบบ?')){
+    auth.signOut();
+  }
+}
+
+/* ══ SAVE ══ */
+function autoSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>saveAll(true), 2000);
+}
+
+async function saveAll(silent=false){
+  if(IS_DEMO){ if(!silent) toast('💾 Demo Mode — ข้อมูลไม่ได้บันทึก Firebase'); return; }
+  if(!db||!currentTeamId) return;
+  try{
+    const formData={};
+    ['f-head','f-head-pos','f-team','f-coop','f-date1','f-date2','f-time','f-law','f-insp','f-note','sig1','sig2','sig3','sig4','apt-no','apt-date','apt-by','apt-subj','nty-no','nty-date','nty-to','nty-idate','nty-detail'].forEach(k=>{
+      const el=document.getElementById(k); if(el) formData[k]=el.value;
+    });
+    const sections={};
+    SECS.forEach(s=>{
+      const f=document.getElementById('sf-'+s.id)?.value||'';
+      const o=document.getElementById('so-'+s.id)?.value||'';
+      const d=document.getElementById('sd-'+s.id)?.value||'';
+      if(f||o||d) sections[s.id]={f,o,d};
+    });
+    await db.collection('teams').doc(currentTeamId).set({
+      formData, sections, loanData,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+      lastUpdatedBy: currentUser.email
+    },{merge:true});
+    if(!silent) toast('✅ บันทึกข้อมูลสำเร็จ');
+  }catch(e){
+    console.error('Save error:',e);
+    if(!silent) toast('❌ บันทึกไม่สำเร็จ: '+e.message);
+  }
+}
+
+/* ══ RENDER ══ */
+function renderSections(){
+  const c1=document.getElementById('secs-1-8');
+  const c2=document.getElementById('secs-9-16');
+  if(!c1||!c2) return;
+  c1.innerHTML=''; c2.innerHTML='';
+  SECS.forEach(s=>{
+    const h=`<div class="form-sec">
+      <div class="form-sec-hd"><div class="sec-num">${s.id}</div>${esc(s.title)}
+        <span id="sst-${s.id}" style="margin-left:auto;font-size:11px;font-weight:400;opacity:.8">✏️ รอกรอก</span>
+      </div>
+      <div class="form-sec-body">
+        <div style="display:grid;grid-template-columns:2fr 1fr 80px;gap:10px">
+          <div><div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:3px">ข้อเท็จจริงที่ตรวจพบ</div>
+            <textarea class="fc" id="sf-${s.id}" rows="6" oninput="secChange(${s.id})"></textarea></div>
+          <div><div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:3px">ข้อเสนอความเห็น/วิธีการแก้ไข</div>
+            <textarea class="fc" id="so-${s.id}" rows="6" oninput="secChange(${s.id})"></textarea></div>
+          <div><div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:3px">ระยะเวลา<br>(วัน)</div>
+            <input class="fc" id="sd-${s.id}" type="number" min="0" oninput="secChange(${s.id})"></div>
+        </div>
+      </div></div>`;
+    (s.id<=8?c1:c2).insertAdjacentHTML('beforeend',h);
+  });
+}
+
+function secChange(id){
+  const t=document.getElementById('sst-'+id);
+  const f=document.getElementById('sf-'+id)?.value||'';
+  if(t) t.textContent=f.length>5?'✅ กรอกแล้ว':'✏️ รอกรอก';
+  autoSave();
+}
+
+function updateProgress(){
+  let filled=0,html='';
+  SECS.forEach((s,i)=>{
+    const f=document.getElementById('sf-'+s.id);
+    const ok=f&&f.value.length>5;
+    if(ok)filled++;
+    html+=`<div class="progress-item"><div class="progress-label">
+      <span style="font-size:11px;font-weight:600">ข้อ ${s.id}. ${s.title.substring(0,26)}${s.title.length>26?'...':''}</span>
+      <span style="font-size:10.5px;color:var(--txt2)">${ok?'✓':'รอ'}</span>
+    </div><div class="progress-bar"><div class="progress-fill" style="width:${ok?100:0}%;background:${CLR[i]}"></div></div></div>`;
+  });
+  const pl=document.getElementById('progress-list'); if(pl) pl.innerHTML=html;
+  const pct=Math.round(filled/SECS.length*100);
+  const dp=document.getElementById('dash-pct'); if(dp) dp.textContent=pct+'%';
+  const df=document.getElementById('dash-filled'); if(df) df.textContent=filled+' / '+SECS.length;
+}
+
+/* ══ LOAN TABLES ══ */
+function renderLoanTable(type){
+  const configs={
+    em:{el:'lt-em',cnt:'em-cnt',title:'เงินกู้เพื่อเหตุฉุกเฉิน',badge:'lt-em',cols:'std'},
+    atm:{el:'lt-atm',cnt:'atm-cnt',title:'เงินกู้ฉุกเฉิน ATM',badge:'lt-em',cols:'std'},
+    or:{el:'lt-or',cnt:'or-cnt',title:'เงินกู้สามัญ (บุคคลค้ำประกัน)',badge:'lt-or',cols:'or'},
+    sp:{el:'lt-sp',cnt:'sp-cnt',title:'เงินกู้พิเศษ',badge:'lt-sp',cols:'sp'}
+  };
+  const c=configs[type]; if(!c) return;
+  const rows=loanData[type]||[];
+  const cnt=document.getElementById(c.cnt); if(cnt) cnt.textContent=rows.length;
+
+  let tbody='';
+  if(!rows.length){
+    const cols=c.cols==='std'?9:9;
+    tbody=`<tr><td colspan="${cols}" style="text-align:center;color:var(--txt2);padding:18px;font-size:13px">ยังไม่มีข้อมูล — คลิก "+ เพิ่มสัญญา"</td></tr>`;
+  } else {
+    rows.forEach((r,i)=>{
+      if(c.cols==='std'){
+        tbody+=`<tr>
+          <td style="text-align:center;font-size:11.5px;color:var(--txt2)">${i+1}</td>
+          <td><input value="${esc(r.no||'')}" onchange="loanData['${type}'][${i}].no=this.value;autoSave()" style="min-width:130px"></td>
+          <td><input value="${esc(r.mid||'')}" onchange="loanData['${type}'][${i}].mid=this.value;autoSave()" style="min-width:80px"></td>
+          <td><input value="${esc(r.name||'')}" onchange="loanData['${type}'][${i}].name=this.value;autoSave()" style="min-width:150px"></td>
+          <td><input type="number" value="${r.amt||0}" onchange="loanData['${type}'][${i}].amt=+this.value;updateLoanTotal('${type}');autoSave()" style="min-width:100px;text-align:right"></td>
+          <td><input type="number" value="${r.inst||0}" onchange="loanData['${type}'][${i}].inst=+this.value;autoSave()" style="min-width:50px;text-align:center"></td>
+          <td><input value="${esc(r.date||'')}" onchange="loanData['${type}'][${i}].date=this.value;autoSave()" style="min-width:100px"></td>
+          <td><input value="${esc(r.bank||'')}" onchange="loanData['${type}'][${i}].bank=this.value;autoSave()" style="min-width:120px"></td>
+          <td style="text-align:center"><button class="btn btn-danger btn-xs" onclick="delLoan('${type}',${i})">ลบ</button></td>
+        </tr>`;
+      } else {
+        tbody+=`<tr>
+          <td style="text-align:center;font-size:11.5px;color:var(--txt2)">${i+1}</td>
+          <td><input value="${esc(r.no||'')}" onchange="loanData['${type}'][${i}].no=this.value;autoSave()" style="min-width:120px"></td>
+          <td><input value="${esc(r.date||'')}" onchange="loanData['${type}'][${i}].date=this.value;autoSave()" style="min-width:100px"></td>
+          <td><input value="${esc(r.name||'')}" onchange="loanData['${type}'][${i}].name=this.value;autoSave()" style="min-width:150px"></td>
+          <td><input value="${esc(r.mid||'')}" onchange="loanData['${type}'][${i}].mid=this.value;autoSave()" style="min-width:80px"></td>
+          <td><input type="number" value="${r.amt||0}" onchange="loanData['${type}'][${i}].amt=+this.value;updateLoanTotal('${type}');autoSave()" style="min-width:100px;text-align:right"></td>
+          <td><input type="number" value="${r.inst||0}" onchange="loanData['${type}'][${i}].inst=+this.value;autoSave()" style="min-width:50px;text-align:center"></td>
+          <td><input type="number" value="${r.gua||1}" onchange="loanData['${type}'][${i}].gua=+this.value;autoSave()" style="min-width:50px;text-align:center"></td>
+          <td style="text-align:center"><button class="btn btn-danger btn-xs" onclick="delLoan('${type}',${i})">ลบ</button></td>
+        </tr>`;
+      }
+    });
+  }
+  const total=(rows.reduce((a,r)=>a+(+r.amt||0),0)).toLocaleString();
+  const isOr=c.cols!=='std';
+  const html=`<div class="card"><div class="card-header">
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><h3>${c.title} <span class="lt-badge ${c.badge}">${rows.length} สัญญา</span></h3></div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-success btn-sm" onclick="addLoan('${type}')">+ เพิ่มสัญญา</button>
+      <button class="btn btn-outline btn-sm" onclick="saveAll()">💾 บันทึก</button>
+    </div>
+  </div>
+  <div class="card-body" style="overflow-x:auto;padding:0">
+    <table class="ct-table">
+      <thead><tr><th>#</th>${isOr?'<th>เลขที่สัญญา</th><th>วันที่</th><th>ชื่อสมาชิก</th><th>สมาชิกเลขที่</th><th>วงเงิน (บาท)</th><th>งวด</th><th>ผู้ค้ำ</th>':'<th>เลขที่สัญญา</th><th>สมาชิกเลขที่</th><th>ชื่อสมาชิก</th><th>วงเงิน (บาท)</th><th>งวด</th><th>วันที่จ่าย</th><th>เลขบัญชี</th>'}<th>จัดการ</th></tr></thead>
+      <tbody>${tbody}</tbody>
+      <tfoot><tr style="background:#f0f3f8;font-weight:700">
+        <td colspan="${isOr?5:4}" style="padding:6px 8px;text-align:right;font-size:12px">รวมทั้งสิ้น</td>
+        <td style="padding:6px 8px;text-align:right;font-size:12px">${total}</td>
+        <td colspan="${isOr?3:3}"></td>
+      </tr></tfoot>
+    </table>
+  </div></div>`;
+  const el=document.getElementById(c.el); if(el) el.innerHTML=html;
+}
+
+function renderAllLoanTables(){['em','atm','or','sp'].forEach(t=>renderLoanTable(t));}
+
+function updateLoanTotal(type){
+  const total=(loanData[type]||[]).reduce((a,r)=>a+(+r.amt||0),0);
+  renderLoanTable(type);
+}
+
+function addLoan(type){
+  const isOr=type==='or'||type==='sp';
+  loanData[type].push(isOr?{no:'',date:'',name:'',mid:'',amt:0,inst:0,gua:1}:{no:'',mid:'',name:'',amt:0,inst:0,date:'',bank:''});
+  renderLoanTable(type);
+  autoSave();
+  toast('✅ เพิ่มแถวใหม่');
+}
+
+function delLoan(type,idx){
+  if(!confirm('ลบรายการนี้?')) return;
+  loanData[type].splice(idx,1);
+  renderLoanTable(type);
+  autoSave();
+  toast('🗑️ ลบแล้ว');
+}
+
+function switchLoanTab(type,el){
+  document.querySelectorAll('.loan-tc').forEach(t=>t.style.display='none');
+  const el2=document.getElementById('lt-'+type); if(el2) el2.style.display='block';
+  document.querySelectorAll('#loan-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+/* ══ OTHER DOCS ══ */
+function addOtherDoc(){
+  otherDocCnt++;
+  const id=otherDocCnt;
+  const tbody=document.getElementById('other-doc-tbody');
+  if(tbody.querySelector('td[colspan]')) tbody.innerHTML='';
+  const inp=document.createElement('input');
+  inp.type='file'; inp.id='fi-row-'+id; inp.style.display='none';
+  inp.onchange=function(){
+    const cell=document.getElementById('row-file-'+id);
+    if(cell) cell.textContent=this.files[0]?.name||'—';
+  };
+  document.body.appendChild(inp);
+  const tr=document.createElement('tr'); tr.id='odr-'+id;
+  tr.innerHTML=`<td style="text-align:center;color:var(--txt2);font-size:11.5px">${id}</td>
+    <td><input class="fc" style="border:1px solid var(--bdr);padding:4px 7px;font-size:12px" placeholder="ชื่อเอกสาร..."></td>
+    <td><select class="fc" style="border:1px solid var(--bdr);padding:4px 7px;font-size:12px"><option>รายงานการตรวจ</option><option>หลักฐานประกอบ</option><option>ระเบียบ/ข้อบังคับ</option><option>บันทึกข้อความ</option><option>อื่นๆ</option></select></td>
+    <td><input class="fc" style="border:1px solid var(--bdr);padding:4px 7px;font-size:12px" placeholder="หมายเหตุ..."></td>
+    <td><span id="row-file-${id}" style="font-size:11px;color:var(--txt2)">—</span> <button class="btn btn-outline btn-xs" style="margin-left:5px" onclick="document.getElementById('fi-row-${id}').click()">เลือก</button></td>
+    <td style="text-align:center"><button class="btn btn-danger btn-xs" onclick="document.getElementById('odr-${id}').remove();if(!document.querySelector('#other-doc-tbody tr'))document.getElementById('other-doc-tbody').innerHTML='<tr><td colspan=6 style=text-align:center;color:var(--txt2);padding:16px>ยังไม่มีรายการ</td></tr>'">ลบ</button></td>`;
+  tbody.appendChild(tr);
+}
+
+/* ══ ADMIN ══ */
+function showAddUserModal(){ document.getElementById('add-user-modal').classList.add('active'); }
+
+async function addUser(){
+  if(IS_DEMO){ toast('🔧 Demo Mode'); return; }
+  const email=document.getElementById('new-user-email').value.trim();
+  const name=document.getElementById('new-user-name').value.trim();
+  const team=document.getElementById('new-user-team').value.trim();
+  const role=document.getElementById('new-user-role').value;
+  if(!email||!name||!team){ toast('❌ กรอกข้อมูลให้ครบ'); return; }
+  try{
+    await db.collection('users').doc(email).set({email,name,teamId:team,role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    toast('✅ เพิ่มผู้ใช้ '+email+' เรียบร้อย');
+    document.getElementById('add-user-modal').classList.remove('active');
+    loadAdminData();
+  }catch(e){ toast('❌ '+e.message); }
+}
+
+async function loadAdminData(){
+  if(IS_DEMO||!db) return;
+  try{
+    const usersSnap=await db.collection('users').get();
+    const teamsSnap=await db.collection('teams').get();
+    const au=document.getElementById('adm-users'); if(au) au.textContent=usersSnap.size;
+    const at=document.getElementById('adm-teams'); if(at) at.textContent=teamsSnap.size;
+
+    // Users table
+    const ub=document.getElementById('adm-user-tbody');
+    if(ub){
+      ub.innerHTML=usersSnap.docs.map(d=>{
+        const u=d.data();
+        return `<tr><td>${esc(u.name||'')}</td><td>${esc(u.email||'')}</td><td>${esc(u.teamId||'')}</td>
+          <td><span class="tag ${u.role==='admin'?'tag-err':u.role==='head'?'tag-warn':'tag-default'}">${u.role||'inspector'}</span></td>
+          <td><button class="btn btn-danger btn-xs" onclick="delUser('${d.id}')">ลบ</button></td></tr>`;
+      }).join('');
+    }
+    // Teams table
+    let rpts=0;
+    const tb=document.getElementById('adm-team-tbody');
+    if(tb){
+      const rows=teamsSnap.docs.map(d=>{
+        const t=d.data();
+        const secs=t.sections||{};
+        const done=Object.values(secs).filter(s=>s.f&&s.f.length>5).length;
+        const pct=Math.round(done/16*100);
+        if(done>0) rpts++;
+        return `<tr><td>${esc(d.id)}</td><td>${esc(t.formData?.['f-team']||'—')}</td><td>${esc(t.formData?.['f-coop']||'—')}</td>
+          <td>${esc(t.formData?.['f-date1']||'—')}</td>
+          <td><div style="display:flex;align-items:center;gap:7px"><div style="flex:1;height:6px;border-radius:3px;background:var(--bdr)"><div style="width:${pct}%;height:100%;border-radius:3px;background:var(--pl)"></div></div><span style="font-size:11px">${pct}%</span></div></td>
+          <td><button class="btn btn-outline btn-xs" onclick="viewTeamReport('${d.id}')">ดูรายงาน</button></td></tr>`;
+      });
+      tb.innerHTML=rows.join('')||'<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">ยังไม่มีคณะ</td></tr>';
+    }
+    const ar=document.getElementById('adm-reports'); if(ar) ar.textContent=rpts;
+  }catch(e){ console.error('Admin load error:',e); }
+}
+
+async function delUser(email){
+  if(!confirm('ลบผู้ใช้ '+email+'?')) return;
+  await db.collection('users').doc(email).delete();
+  toast('🗑️ ลบผู้ใช้แล้ว');
+  loadAdminData();
+}
+
+async function viewTeamReport(teamId){
+  if(!db) return;
+  const snap=await db.collection('teams').doc(teamId).get();
+  const data=snap.data()||{};
+  // Temporarily load this team's data for preview
+  const savedTeam=currentTeamId;
+  currentTeamId=teamId;
+  const fields=Object.keys(data.formData||{});
+  fields.forEach(k=>{ const el=document.getElementById(k); if(el&&data.formData[k]!==undefined) el.value=data.formData[k]; });
+  if(data.sections) SECS.forEach(s=>{ const d=data.sections[s.id]||{}; const f=document.getElementById('sf-'+s.id); if(f&&d.f) f.value=d.f; });
+  showPreview();
+  currentTeamId=savedTeam;
+}
+
+/* ══ NAVIGATION ══ */
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('page-'+id); if(pg) pg.classList.add('active');
+  if(el) el.classList.add('active');
+  const T={
+    dashboard:'Dashboard ภาพรวม',form:'กรอกแบบรายงานผลการตรวจการสหกรณ์',
+    loans:'ข้อมูลสัญญาเงินกู้',attachments:'เอกสารแนบทั่วไป',
+    'doc-appoint':'คำสั่งแต่งตั้งผู้ตรวจการสหกรณ์','doc-notify':'หนังสือแจ้งสหกรณ์',
+    'doc-other':'เอกสารอื่นๆ',admin:'Admin Panel'
+  };
+  document.getElementById('topbar-title').textContent=T[id]||id;
+  if(id==='dashboard') updateProgress();
+  if(id==='admin') loadAdminData();
+}
+
+function showTab(id,el){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const tc=document.getElementById(id); if(tc) tc.classList.add('active');
+  if(el) el.classList.add('active');
+}
+
+/* ══ PREVIEW ══ */
+function showPreview(){
+  const gv=id=>document.getElementById(id)?.value||'';
+  let rows='';
+  SECS.forEach(s=>{
+    const f=document.getElementById('sf-'+s.id)?.value||'';
+    const o=document.getElementById('so-'+s.id)?.value||'';
+    const d=document.getElementById('sd-'+s.id)?.value||'';
+    rows+=`<tr>
+      <td style="border:1px solid #bbb;padding:5px 7px;font-weight:600;font-size:11.5px;vertical-align:top">${esc(s.id+'. '+s.title)}</td>
+      <td style="border:1px solid #bbb;padding:5px 7px;font-size:11.5px;vertical-align:top">${nl2br(f)}</td>
+      <td style="border:1px solid #bbb;padding:5px 7px;font-size:11.5px;vertical-align:top">${nl2br(o)}</td>
+      <td style="border:1px solid #bbb;padding:5px 7px;font-size:11.5px;text-align:center;vertical-align:top">${esc(d)}</td>
+    </tr>`;
+  });
+  const s1=gv('sig1'),s2=gv('sig2'),s3=gv('sig3'),s4=gv('sig4');
+  const insp=gv('f-insp').split('\n').filter(Boolean).join(', ');
+  document.getElementById('modal-body').innerHTML=`
+    <div style="font-family:'Sarabun',sans-serif;font-size:13px;line-height:1.8;position:relative">
+      <!-- PREVIEW WATERMARK -->
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:22px;font-weight:800;color:rgba(26,58,92,.05);white-space:nowrap;pointer-events:none;z-index:0;letter-spacing:2px">กรมส่งเสริมสหกรณ์ • COOPERATIVE PROMOTION DEPARTMENT</div>
+      <div style="position:relative;z-index:1">
+        <div style="text-align:center;margin-bottom:14px"><div style="font-size:15px;font-weight:800">แบบรายงานการตรวจสอบกิจการและฐานะการเงิน</div>
+        <div style="font-size:11px;color:#666;margin-top:4px">กรมส่งเสริมสหกรณ์ — เอกสารลับ</div></div>
+        <p style="margin-bottom:10px">ข้าพเจ้า <b>${esc(gv('f-head'))}</b> ตำแหน่ง <b>${esc(gv('f-head-pos'))}</b> ประธานคณะผู้ตรวจการสหกรณ์ ${esc(gv('f-team'))} พร้อมด้วย ${esc(insp)} คณะผู้ตรวจการสหกรณ์</p>
+        <p style="margin-bottom:13px">ได้ตรวจสอบกิจการและฐานะทางการเงินของ<b>${esc(gv('f-coop'))}</b> ตามมาตรา 19 แห่งพระราชบัญญัติสหกรณ์ พ.ศ. 2542 ปรากฏผลการตรวจสอบ ดังนี้</p>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#1a3a5c;color:#fff">
+            <th style="border:1px solid #bbb;padding:7px;font-size:12px;min-width:140px">รายการที่ตรวจสอบ</th>
+            <th style="border:1px solid #bbb;padding:7px;font-size:12px;min-width:260px">ข้อเท็จจริงที่ตรวจพบ</th>
+            <th style="border:1px solid #bbb;padding:7px;font-size:12px;min-width:150px">ข้อเสนอความเห็น/วิธีการแก้ไข</th>
+            <th style="border:1px solid #bbb;padding:7px;font-size:12px;min-width:70px">ระยะเวลา (วัน)</th>
+          </tr></thead><tbody>${rows}</tbody>
+        </table></div>
+        <p style="margin-top:14px">${esc(gv('f-note'))}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;text-align:center">
+          <div><div style="border-bottom:1px solid #333;padding-top:36px;margin-bottom:6px"></div>(${esc(s1)})<br>ผู้ตรวจการสหกรณ์</div>
+          <div><div style="border-bottom:1px solid #333;padding-top:36px;margin-bottom:6px"></div>(${esc(s2)})<br>ผู้ตรวจการสหกรณ์</div>
+          <div><div style="border-bottom:1px solid #333;padding-top:36px;margin-bottom:6px"></div>(${esc(s3)})<br>ผู้ตรวจการสหกรณ์</div>
+          <div><div style="border-bottom:1px solid #333;padding-top:36px;margin-bottom:6px"></div>(${esc(s4)})<br>ผู้ตรวจการสหกรณ์</div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('active'); }
+
+/* ══ EXPORT WORD (with watermark header) ══ */
+function exportWord(){
+  const gv=id=>document.getElementById(id)?.value||'';
+  const insp=gv('f-insp').split('\n').filter(Boolean).map(l=>{const p=l.split(' - ');return esc(p[0])+' ตำแหน่ง '+esc(p[1]||'');}).join(' ');
+  let rows='';
+  SECS.forEach(s=>{
+    const f=document.getElementById('sf-'+s.id)?.value||'';
+    const o=document.getElementById('so-'+s.id)?.value||'';
+    const d=document.getElementById('sd-'+s.id)?.value||'';
+    rows+=`<tr>
+      <td style="border:1px solid #333;padding:5pt 7pt;font-weight:600;font-size:12pt;vertical-align:top">${esc(s.id+'. '+s.title)}</td>
+      <td style="border:1px solid #333;padding:5pt 7pt;font-size:12pt;vertical-align:top">${nl2br(f)}</td>
+      <td style="border:1px solid #333;padding:5pt 7pt;font-size:12pt;vertical-align:top">${nl2br(o)}</td>
+      <td style="border:1px solid #333;padding:5pt 7pt;font-size:12pt;text-align:center;vertical-align:top">${esc(d)}</td>
+    </tr>`;
+  });
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{font-family:TH SarabunPSK,'Sarabun',sans-serif;font-size:14pt;line-height:1.9;margin:2cm 2.5cm;position:relative;}
+  h2{text-align:center;font-size:17pt;margin-bottom:6pt;}
+  h3{text-align:center;font-size:12pt;color:#666;margin-bottom:14pt;font-weight:400;}
+  p{margin-bottom:8pt;}
+  table{width:100%;border-collapse:collapse;}
+  th{background:#1a3a5c;color:#fff;border:1px solid #333;padding:6pt 8pt;font-size:12pt;}
+  .sg{display:grid;grid-template-columns:1fr 1fr;gap:60pt;margin-top:50pt;text-align:center;}
+  .sl{border-bottom:1px solid #333;padding-top:40pt;margin-bottom:5pt;}
+  /* WATERMARK */
+  body::before{content:'กรมส่งเสริมสหกรณ์ • COOPERATIVE PROMOTION DEPARTMENT • ลับ';
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);
+    font-size:26pt;font-weight:800;color:rgba(26,58,92,.05);
+    white-space:nowrap;z-index:-1;pointer-events:none;letter-spacing:2px;}
+  /* HEADER with DOA logo text */
+  .doc-header{border-bottom:2px solid #1a3a5c;padding-bottom:8pt;margin-bottom:16pt;display:flex;align-items:center;justify-content:space-between;}
+  .doc-header .doa-name{font-size:11pt;color:#1a3a5c;font-weight:700;}
+  .doc-header .doc-class{font-size:11pt;color:#c0392b;font-weight:700;border:1.5px solid #c0392b;padding:2pt 8pt;border-radius:4pt;}
+</style>
+</head><body>
+<div class="doc-header">
+  <div class="doa-name">🌾 กรมส่งเสริมสหกรณ์<br><span style="font-size:9pt;font-weight:400;color:#666">Cooperative Promotion Department</span></div>
+  <div class="doc-class">ลับ</div>
+</div>
+<h2>แบบรายงานการตรวจสอบกิจการและฐานะการเงิน</h2>
+<h3>คณะผู้ตรวจการสหกรณ์ ${esc(gv('f-team'))}</h3>
+<p>ข้าพเจ้า <b>${esc(gv('f-head'))}</b> ตำแหน่ง <b>${esc(gv('f-head-pos'))}</b> ประธานคณะผู้ตรวจการสหกรณ์ ${esc(gv('f-team'))} พร้อมด้วย ${insp} คณะผู้ตรวจการสหกรณ์</p>
+<p>ได้ตรวจสอบกิจการและฐานะทางการเงินของ<b>${esc(gv('f-coop'))}</b> ตามมาตรา 19 แห่งพระราชบัญญัติสหกรณ์ พ.ศ. 2542 เมื่อวันที่ ${esc(gv('f-date1'))} ถึงวันที่ ${esc(gv('f-date2'))} ปรากฏผลการตรวจสอบ ดังนี้</p>
+<table><thead><tr>
+  <th style="width:18%">รายการที่ตรวจสอบ</th>
+  <th style="width:48%">ข้อเท็จจริงที่ตรวจพบ (ระบุรายละเอียด)</th>
+  <th style="width:24%">ข้อเสนอความเห็น/วิธีการแก้ไข</th>
+  <th style="width:10%">ระยะเวลา (วัน)</th>
+</tr></thead><tbody>${rows}</tbody></table>
+<p style="margin-top:16pt">${esc(gv('f-note'))}</p>
+<div class="sg">
+  <div><div class="sl"></div>(${esc(gv('sig1'))})<br>ผู้ตรวจการสหกรณ์</div>
+  <div><div class="sl"></div>(${esc(gv('sig2'))})<br>ผู้ตรวจการสหกรณ์</div>
+  <div><div class="sl"></div>(${esc(gv('sig3'))})<br>ผู้ตรวจการสหกรณ์</div>
+  <div><div class="sl"></div>(${esc(gv('sig4'))})<br>ผู้ตรวจการสหกรณ์</div>
+</div>
+</body></html>`;
+  const coop=gv('f-coop')||'รายงาน';
+  const blob=new Blob([html],{type:'application/msword;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='รายงานตรวจการสหกรณ์_'+coop.replace(/\s/g,'_').substring(0,20)+'.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✅ ดาวน์โหลด Word (มีลายน้ำ + header กรมฯ)');
+}
+
+function doPrint(){ closeModal(); showPage('form',null); setTimeout(()=>window.print(),300); }
+
+/* ══ FILES ══ */
+function addFiles(input,listId){
+  const list=document.getElementById(listId); if(!list) return;
+  Array.from(input.files).forEach(f=>{
+    const icon=f.name.endsWith('.pdf')?'📄':f.name.match(/xlsx?/)?'📊':f.name.match(/docx?/)?'📝':f.name.match(/\.(jpg|jpeg|png)/i)?'🖼️':'📁';
+    const item=document.createElement('div'); item.className='file-item';
+    item.innerHTML=`<span style="font-size:17px">${icon}</span><div class="fi-meta"><div class="fi-name">${esc(f.name)}</div><div class="fi-size">${(f.size/1024).toFixed(0)} KB</div></div><button class="rm-btn" onclick="this.closest('.file-item').remove()">✕</button>`;
+    list.appendChild(item);
+  });
+  toast('✅ อัปโหลด '+input.files.length+' ไฟล์');
+}
+function doDrop(e,listId){ e.preventDefault(); addFiles({files:e.dataTransfer.files},listId); }
+
+/* ══ UTILS ══ */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function nl2br(s){ return esc(s).replace(/\n/g,'<br>'); }
+function show(id){ const el=document.getElementById(id); if(el) el.style.display=''; }
+function hide(id){ const el=document.getElementById(id); if(el) el.style.display='none'; }
+
+let _tt;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity='1'; t.style.transform='translateY(0)';
+  clearTimeout(_tt); _tt=setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(8px)'; },3500);
+}
+
+/* ══ START ══ */
+initFirebase();
+</script>
+</body>
+</html>
